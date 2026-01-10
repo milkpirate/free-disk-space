@@ -44,6 +44,14 @@ inputs:
     required: false
     default: "true"
 
+  chroot:
+    description: |
+      Applies removal relative to the given directory (helpful for freeing up from within a custom image).
+      
+      large-packages, docker-images, tool-cache and swap-storage will still apply to the root within the custom image.
+    required: false
+    default: ""
+
 runs:
   using: "composite"
   steps:
@@ -101,13 +109,13 @@ runs:
           printSeparationLine '=' 80
           echo "${caption}"
           echo ""
-          echo "$ dh -h /"
+          echo "$ dh -h ${{ inputs.chroot }}/"
           echo ""
-          df -h /
-          echo "$ dh -a /"
+          df -h ${{ inputs.chroot }}/
+          echo "$ dh -a ${{ inputs.chroot }}/"
           echo ""
-          df -a /
-          echo "$ dh -a"
+          df -a ${{ inputs.chroot }}/
+          echo "$ dh -a ${{ inputs.chroot }}"
           echo ""
           df -a
           printSeparationLine '=' 80
@@ -122,7 +130,7 @@ runs:
         # Display initial disk space stats
 
         AVAILABLE_INITIAL=$(getAvailableSpace)
-        AVAILABLE_ROOT_INITIAL=$(getAvailableSpace '/')
+        AVAILABLE_ROOT_INITIAL=$(getAvailableSpace '${{ inputs.chroot }}/')
 
         printDH "BEFORE CLEAN-UP:"
         echo ""
@@ -131,11 +139,11 @@ runs:
         # Option: Remove Android library
 
         if [[ ${{ inputs.android }} == 'true' ]]; then
-          BEFORE=$(getAvailableSpace)
+          BEFORE=$(getAvailableSpace '${{ inputs.chroot }}')
           
-          sudo rm -rf /usr/local/lib/android || true
+          sudo rm -rf '${{ inputs.chroot }}/usr/local/lib/android' || true
 
-          AFTER=$(getAvailableSpace)
+          AFTER=$(getAvailableSpace '${{ inputs.chroot }}')
           SAVED=$((AFTER-BEFORE))
           printSavedSpace $SAVED "Android library"
         fi
@@ -143,12 +151,12 @@ runs:
         # Option: Remove .NET runtime
 
         if [[ ${{ inputs.dotnet }} == 'true' ]]; then
-          BEFORE=$(getAvailableSpace)
+          BEFORE=$(getAvailableSpace '${{ inputs.chroot }}')
 
           # https://github.community/t/bigger-github-hosted-runners-disk-space/17267/11
-          sudo rm -rf /usr/share/dotnet || true
+          sudo rm -rf '${{ inputs.chroot }}/usr/share/dotnet' || true
           
-          AFTER=$(getAvailableSpace)
+          AFTER=$(getAvailableSpace '${{ inputs.chroot }}')
           SAVED=$((AFTER-BEFORE))
           printSavedSpace $SAVED ".NET runtime"
         fi
@@ -156,12 +164,12 @@ runs:
         # Option: Remove Haskell runtime
 
         if [[ ${{ inputs.haskell }} == 'true' ]]; then
-          BEFORE=$(getAvailableSpace)
+          BEFORE=$(getAvailableSpace '${{ inputs.chroot }}')
 
-          sudo rm -rf /opt/ghc || true
-          sudo rm -rf /usr/local/.ghcup || true
+          sudo rm -rf '${{ inputs.chroot }}/opt/ghc' || true
+          sudo rm -rf '${{ inputs.chroot }}/usr/local/.ghcup' || true
           
-          AFTER=$(getAvailableSpace)
+          AFTER=$(getAvailableSpace '${{ inputs.chroot }}')
           SAVED=$((AFTER-BEFORE))
           printSavedSpace $SAVED "Haskell runtime"
         fi
@@ -220,7 +228,7 @@ runs:
           BEFORE=$(getAvailableSpace)
 
           sudo swapoff -a || true
-          sudo rm -f /mnt/swapfile || true
+          sudo rm -f '${{ inputs.chroot }}/mnt/swapfile' || true
           free -h
           
           AFTER=$(getAvailableSpace)
@@ -232,8 +240,8 @@ runs:
 
         # Output saved space statistic
 
-        AVAILABLE_END=$(getAvailableSpace)
-        AVAILABLE_ROOT_END=$(getAvailableSpace '/')
+        AVAILABLE_END=$(getAvailableSpace '${{ inputs.chroot }}')
+        AVAILABLE_ROOT_END=$(getAvailableSpace '${{ inputs.chroot }}/')
 
         echo ""
         printDH "AFTER CLEAN-UP:"
@@ -241,7 +249,7 @@ runs:
         echo ""
         echo ""
 
-        echo "/dev/root:"
+        echo "${{ inputs.chroot }}/dev/root:"
         printSavedSpace $((AVAILABLE_ROOT_END - AVAILABLE_ROOT_INITIAL))
         echo "overall:"
         printSavedSpace $((AVAILABLE_END - AVAILABLE_INITIAL))
